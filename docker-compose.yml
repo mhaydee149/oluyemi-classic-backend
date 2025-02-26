@@ -1,0 +1,8 @@
+version: '3.4'
+
+services:
+  oluyemibackend:
+    image: oluyemibackend
+    build:
+      context: .
+      dockerfile: ./Dockerfile
