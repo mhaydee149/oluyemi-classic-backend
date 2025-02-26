@@ -1,42 +1,40 @@
 <?php
+include 'db.php';
+
+// Enable CORS for API requests
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
-
-// Handle preflight request
-if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
-    http_response_code(204); // No Content
-    exit();
-}
-
 header("Content-Type: application/json");
 
-error_reporting(E_ALL);
-ini_set("display_errors", 1);
-
-$conn = new mysqli("localhost", "root", "", "oluyemi_classic");
-
-if ($conn->connect_error) {
-    die(json_encode(["error" => "Database connection failed: " . $conn->connect_error]));
-}
-
-$rawData = file_get_contents("php://input");
-$data = json_decode($rawData, true);
-
-if (!isset($data["email"]) || !isset($data["password"])) {
-    echo json_encode(["error" => "Email and password are required"]);
+// Handle preflight request for CORS
+if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
+    http_response_code(204);
     exit();
 }
 
-$email = $conn->real_escape_string($data["email"]);
+// Read JSON input from frontend
+$data = json_decode(file_get_contents("php://input"), true);
+
+// Validate input fields
+if (!isset($data["email"]) || !isset($data["password"])) {
+    echo json_encode(["error" => "Invalid request. Please provide email and password."]);
+    exit();
+}
+
+$email = trim($data["email"]);
 $password = $data["password"];
 
-$sql = "SELECT * FROM users WHERE email = '$email'";
-$result = $conn->query($sql);
+// Fetch user from database
+$sql = $conn->prepare("SELECT id, name, email, password FROM users WHERE email = ?");
+$sql->bind_param("s", $email);
+$sql->execute();
+$result = $sql->get_result();
 
 if ($result->num_rows > 0) {
     $user = $result->fetch_assoc();
 
+    // Verify password
     if (password_verify($password, $user["password"])) {
         echo json_encode([
             "success" => true,
